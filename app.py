@@ -9,7 +9,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_community.chat_models import ChatOpenAI
 from langchain_core.output_parsers import StrOutputParser
 
-DEEPSEEK_API_KEY = st.secrets["api_keys"]["deepseek_api_key"]
+DEEPSEEK_API_KEY = st.secrets["my_api_key"]
 DEEPSEEK_API_BASE = "https://openrouter.ai/api/v1"
 
 def initialize_llm():
