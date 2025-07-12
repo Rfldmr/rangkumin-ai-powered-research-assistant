@@ -161,16 +161,34 @@ def find_related_journals(document_text):
     llm = initialize_llm()
     
     keyword_prompt = ChatPromptTemplate.from_messages([
-        ("system", """... (tetap sama) ..."""),
-        ("user", "{document_text}")
-    ])
+    ("system", """Anda adalah asisten penelitian yang ahli dalam menganalisis judul jurnal akademik. Ekstrak 3-5 frasa kunci terpenting dari judul jurnal yang akan digunakan untuk mencari paper sejenis. 
+
+Aturan:
+1. Ambil konsep inti, metode, teknologi, dan objek penelitian
+2. Prioritaskan istilah teknis/spesifik
+3. Gabungkan kata yang harus berdampingan (contoh: "regresi linear")
+4. Abaikan kata umum seperti "analisis", "studi", "penggunaan" kecuali sangat relevan
+5. Hasil HANYA berisi kata kunci dipisahkan koma, tanpa penjelasan
+6. Terjemahkan hasil ke dalam bahasa Inggris
+
+Contoh:
+Judul: "Analisis Prediksi Harga Rumah Sesuai Spesifikasi Menggunakan Metode Regresi Linear Berganda Berbasis Shiny R"
+Output: Prediksi harga rumah, regresi linear berganda, Shiny R
+
+Judul: "Penerapan Metode Waterfall dalam Perencanaan Sistem Informasi Penjualan Buku berbasis Aplikasi Website (Studi Kasus: Penjual Buku Toko 21 Jombang)"
+Output: Waterfall, Perencanaan, Sistem Informasi, Aplikasi, Website
+
+Judul: "{document_text}"
+Output: """),
+    ("user", "{document_text}")
+])
     
     keyword_chain = keyword_prompt | llm | StrOutputParser()
-    search_keywords = keyword_chain.invoke({"document_text": document_text})
+    keywords = keyword_chain.invoke({"document_text": document_text})
     
     client = arxiv.Client()
     search = arxiv.Search(
-        query=search_keywords,
+        query=keywords,
         max_results=5,
         sort_by=arxiv.SortCriterion.Relevance
     )
@@ -178,28 +196,23 @@ def find_related_journals(document_text):
     results = []
     try:
         for result in client.results(search):
-            # Ambil kata kunci unik dari metadata arXiv (jika ada)
             arxiv_keywords = [tag.term for tag in result.tags] if hasattr(result, 'tags') else []
-            
-            # Gabungkan dengan prioritas pada kata kunci arXiv
-            displayed_keywords = arxiv_keywords if arxiv_keywords else [
-                kw.strip() for kw in search_keywords.split(',')[:3]
-            ]
+        
+            search_keywords = [kw.strip() for kw in keywords.split(',')] if keywords else []
+            combined_keywords = list(set(arxiv_keywords + search_keywords))
             
             results.append({
-                "title": result.title,
-                "authors": [author.name for author in result.authors],
-                "published": result.published.strftime("%Y-%m-%d"),
-                "summary": result.summary,
-                "keywords": ", ".join(displayed_keywords[:5]),  # Maksimal 5 kata kunci
-                "pdf_url": result.pdf_url,
-                "doi": result.doi if result.doi else "Tidak tersedia",
-            })
+            "title": result.title,
+            "authors": [author.name for author in result.authors],
+            "published": result.published.strftime("%Y-%m-%d"),
+            "summary": result.summary,
+            "keywords": ", ".join(combined_keywords[:5]),
+            "pdf_url": result.pdf_url,
+            "doi": result.doi if result.doi else "Tidak tersedia",
+        })
     except Exception as e:
         st.error(f"Error saat mencari di arXiv: {str(e)}")
         return []
-    
-    return results
     
     formatted_results = []
     for idx, paper in enumerate(results, 1):
@@ -382,3 +395,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+kenapa keyword yang ditampilkan pada rekomendasi jurnal terkait selalu sama pada kelima jurnal rekomendasi yang ditampilkan?
