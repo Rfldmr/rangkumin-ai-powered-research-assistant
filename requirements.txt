@@ -6,3 +6,4 @@ langchain-core==0.2.43
 langchain-text-splitters==0.2.4
 streamlit==1.40.1
 pypdf==5.7.0
+openai==1.93.0
