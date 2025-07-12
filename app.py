@@ -395,5 +395,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-kenapa keyword yang ditampilkan pada rekomendasi jurnal terkait selalu sama pada kelima jurnal rekomendasi yang ditampilkan?
