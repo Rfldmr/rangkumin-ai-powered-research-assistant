@@ -51,7 +51,7 @@ def generate_summary(document_text):
 
 - **Judul**: [Judul jurnal]
 (beri jarak)
-- **Author(s)**: [Daftar penulis dengan afiliasi jika ada]
+- **Author(s)**: [Daftar penulis]
 (beri jarak)
 - **Abstract**: [Ringkasan konten jurnal]
 (beri jarak)
@@ -59,9 +59,7 @@ def generate_summary(document_text):
 (beri jarak)
 - **Metode Penelitian**: [Metodologi yang digunakan]
 (beri jarak)
-- **Publisher**: [Penerbit jurnal] atau 'Tidak Diketahui'
-(beri jarak)
-- **Tingkat Sinta**: [Perkiraan Sinta 1-6] atau 'Tidak Diketahui'
+- **Publisher**: [Penerbit atau nama jurnal] atau 'Tidak Diketahui'
 (beri jarak)
 - **Tanggal Publish**: [Tanggal publikasi] atau 'Tidak Diketahui'
 (beri jarak)
