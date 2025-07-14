@@ -202,7 +202,6 @@ Output: """),
             "authors": [author.name for author in result.authors],
             "published": result.published.strftime("%Y-%m-%d"),
             "summary": result.summary,
-            "tags": [tag.term for tag in result.tags] if hasattr(result, 'tags') else [],
             "pdf_url": result.pdf_url,
             "doi": result.doi if result.doi else "Tidak tersedia",
         })
@@ -217,7 +216,6 @@ Output: """),
 - **Penulis**: {', '.join(paper['authors'][:3])}{' et al.' if len(paper['authors']) > 3 else ''}  
 - **Tanggal Publikasi**: {paper['published']}   
 - **DOI**: {paper['doi']} 
-- **Keyword**: {', '.join(paper['tags'][:5]) if paper['tags'] else 'Tidak tersedia'} 
 
 **Ringkasan**:  
 {paper['summary'][:300]}...  
