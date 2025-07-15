@@ -155,110 +155,76 @@ def generate_citations(document_text):
     return chain.invoke({"document_text": document_text})
 
 def find_related_journals(document_text):
-    """Find related journals using arXiv API with improved relevance"""
+    """Find related journals using arXiv API"""
     llm = initialize_llm()
     
-    # Langkah 1: Ekstrak konsep kunci yang lebih bermakna dari dokumen
-    concept_prompt = ChatPromptTemplate.from_messages([
-        ("system", """Anda adalah ahli analisis dokumen akademik. Identifikasi 3-5 konsep inti dari teks berikut yang paling representatif untuk pencarian literatur terkait. 
+    keyword_prompt = ChatPromptTemplate.from_messages([
+    ("system", """Anda adalah asisten penelitian yang ahli dalam menganalisis judul jurnal akademik. Ekstrak 3-5 frasa kunci terpenting dari judul jurnal yang akan digunakan untuk mencari paper sejenis. 
 
 Aturan:
-1. Fokus pada:
-   - Masalah penelitian utama
-   - Metode/teknik inti
-   - Domain aplikasi
-   - Teori dasar
-2. Gunakan istilah teknis spesifik
-3. Hindari kata umum/kata kerja
-4. Format: konsep1, konsep2, konsep3 (dalam bahasa Inggris)
-5. Urutkan dari yang paling spesifik ke umum
+1. Ambil konsep inti, metode, teknologi, dan objek penelitian
+2. Prioritaskan istilah teknis/spesifik
+3. Gabungkan kata yang harus berdampingan (contoh: "regresi linear")
+4. Abaikan kata umum seperti "analisis", "studi", "penggunaan" kecuali sangat relevan
+5. Hasil HANYA berisi kata kunci dipisahkan koma, tanpa penjelasan
+6. Terjemahkan hasil ke dalam bahasa Inggris
 
 Contoh:
-Input: "Penelitian ini mengembangkan model deep learning berbasis CNN untuk deteksi kanker paru-paru dari citra CT scan dengan akurasi 95%"
-Output: lung cancer detection, CT scan images, CNN deep learning model
+Judul: "Analisis Prediksi Harga Rumah Sesuai Spesifikasi Menggunakan Metode Regresi Linear Berganda Berbasis Shiny R"
+Output: Prediksi harga rumah, regresi linear berganda, Shiny R
 
-Teks:
-{document_text}"""),
-        ("user", "{document_text}")
-    ])
-    
-    concept_chain = concept_prompt | llm | StrOutputParser()
-    concepts = concept_chain.invoke({"document_text": document_text[:10000]})  # Batasi input untuk efisiensi
-    
-    # Langkah 2: Bangun query pencarian yang lebih baik
-    query_prompt = ChatPromptTemplate.from_messages([
-        ("system", """Buat query pencarian arXiv yang efektif berdasarkan konsep-konsep berikut. 
+Judul: "Penerapan Metode Waterfall dalam Perencanaan Sistem Informasi Penjualan Buku berbasis Aplikasi Website (Studi Kasus: Penjual Buku Toko 21 Jombang)"
+Output: Waterfall, Perencanaan, Sistem Informasi, Aplikasi, Website
 
-Aturan:
-1. Gabungkan konsep dengan operator AND/OR secara logis
-2. Gunakan tanda kutip untuk frasa eksak
-3. Prioritaskan istilah paling spesifik
-4. Maksimal 3 operator boolean
-5. Contoh: 'deep learning' AND 'medical imaging' OR 'computer aided diagnosis'
-
-Konsep:
-{concepts}"""),
-        ("user", "{concepts}")
-    ])
+Judul: "{document_text}"
+Output: """),
+    ("user", "{document_text}")
+])
     
-    query_chain = query_prompt | llm | StrOutputParser()
-    query = query_chain.invoke({"concepts": concepts})
+    keyword_chain = keyword_prompt | llm | StrOutputParser()
+    keywords = keyword_chain.invoke({"document_text": document_text})
     
-    # Langkah 3: Lakukan pencarian dengan filter tambahan
     client = arxiv.Client()
     search = arxiv.Search(
-        query=query,
-        max_results=7,  # Ambil lebih banyak untuk seleksi
-        sort_by=arxiv.SortCriterion.Relevance,
-        sort_order=arxiv.SortOrder.Descending
+        query=keywords,
+        max_results=5,
+        sort_by=arxiv.SortCriterion.Relevance
     )
     
     results = []
     try:
-        # Ambil hasil dan filter berdasarkan similarity sederhana
         for result in client.results(search):
-            # Hitung kesamaan kata kunci antara dokumen dan abstrak paper
-            doc_keywords = set(concepts.lower().split(','))
-            paper_text = f"{result.title} {result.summary}".lower()
-            matches = sum(1 for kw in doc_keywords if kw.strip() in paper_text)
+            arxiv_keywords = [tag.term for tag in result.tags] if hasattr(result, 'tags') else []
+            combined_keywords = arxiv_keywords
             
-            if matches >= 2:  # Minimal 2 konsep yang match
-                results.append({
-                    "title": result.title,
-                    "authors": [author.name for author in result.authors],
-                    "published": result.published.strftime("%Y-%m-%d"),
-                    "summary": result.summary,
-                    "pdf_url": result.pdf_url,
-                    "doi": result.doi if result.doi else "Tidak tersedia",
-                    "relevance_score": matches
-                })
-        
-        # Urutkan berdasarkan relevansi
-        results.sort(key=lambda x: x['relevance_score'], reverse=True)
-        results = results[:5]  # Ambil 5 terbaik
-        
+            results.append({
+            "title": result.title,
+            "authors": [author.name for author in result.authors],
+            "published": result.published.strftime("%Y-%m-%d"),
+            "summary": result.summary,
+            "pdf_url": result.pdf_url,
+            "doi": result.doi if result.doi else "Tidak tersedia",
+        })
     except Exception as e:
         st.error(f"Error saat mencari di arXiv: {str(e)}")
         return []
     
-    # Format hasil dengan penanda relevansi
     formatted_results = []
     for idx, paper in enumerate(results, 1):
-        relevance_stars = "⭐" * paper['relevance_score']
         formatted = f"""
-{idx}. **{paper['title']}** {relevance_stars}
-- **Penulis**: {', '.join(paper['authors'][:2])}{' et al.' if len(paper['authors']) > 2 else ''}  
-- **Tanggal**: {paper['published']} • DOI: {paper['doi']}
+{idx}. **{paper['title']}**
+- **Penulis**: {', '.join(paper['authors'][:3])}{' et al.' if len(paper['authors']) > 3 else ''}  
+- **Tanggal Publikasi**: {paper['published']}   
+- **DOI**: {paper['doi']} 
 
-**Abstrak**:  
-{paper['summary'][:250]}...  
+**Ringkasan**:  
+{paper['summary'][:300]}...  
 
-[📥 PDF]({paper['pdf_url']}) | [🔗 Detail](https://arxiv.org/abs/{paper['pdf_url'].split('/')[-1].replace('.pdf','')})
+[📄 Unduh PDF]({paper['pdf_url']}) | [🔗 Lihat Detail](https://arxiv.org/abs/{paper['pdf_url'].split('/')[-1].replace('.pdf','')})
 """
         formatted_results.append(formatted)
     
-    return formatted_results if formatted_results else None
-
+    return formatted_results
 
 def main():
     st.set_page_config(page_title="AI-Powered Research Assistant", page_icon="📚", layout="wide")
